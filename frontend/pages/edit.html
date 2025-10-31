@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Post</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../lib/simplemde.min.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Edit Blog Post</h2>
+        <p id="message" class="error"></p>
+        <form id="editForm">
+            <input type="text" id="title" required>
+            <textarea id="content-editor"></textarea>
+            <button type="submit">Update</button>
+            <a id="cancelLink" href="index.html">Cancel</a>
+        </form>
+    </div>
+
+    <script src="../lib/simplemde.min.js"></script>
+    <script src="../js/main.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const postId = urlParams.get('id');
+        let simplemde;
+
+        if (!postId) {
+            alert('No post ID');
+            window.location.href = 'index.html';
+        } else {
+            loadPostForEdit(postId);
+        }
+
+        async function loadPostForEdit(id) {
+            const res = await fetch(`/blog-app/backend/api/posts/get.php?id=${id}`);
+            const post = await res.json();
+
+            if (post.error) {
+                alert(post.error);
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Check ownership via auth
+            const user = await checkAuth();
+            if (!user || user.id != post.user_id) {
+                alert('Unauthorized');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.getElementById('title').value = post.title;
+            document.getElementById('cancelLink').href = `view.html?id=${post.id}`;
+
+            simplemde = new SimpleMDE({
+                element: document.getElementById("content-editor"),
+                initialValue: post.content
+            });
+        }
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('title').value;
+            const content = simplemde.value();
+
+            const res = await fetch('/blog-app/backend/api/posts/edit.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: postId, title, content })
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                document.getElementById('message').textContent = data.error;
+            } else {
+                window.location.href = `view.html?id=${postId}`;
+            }
+        });
+    </script>
+</body>
+</html>
