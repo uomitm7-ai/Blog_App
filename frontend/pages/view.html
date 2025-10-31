@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog Post</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../js/theme.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <h1><a href="index.html">MyBlog</a></h1>
+        <div class="navbar-actions">
+            <div id="authNav"></div>
+            <!-- <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+                <i class="fas fa-moon"></i>
+            </button> -->
+        </div>
+    </div>
+</nav>
+
+    <div class="container single-post">
+        <div id="post-content">Loading...</div>
+    </div>
+
+    <!-- ✅ Load marked.js for Markdown -->
+    <script src="../lib/marked.min.js"></script>
+    <script src="../js/main.js"></script>
+    <script>
+        // Configure marked
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const postId = urlParams.get('id');
+
+        if (!postId) {
+            document.getElementById('post-content').innerHTML = '<p>Invalid post ID.</p>';
+        } else {
+            checkAuth().then(user => {
+                loadPost(postId, user);
+            });
+        }
+
+        async function loadPost(id, user) {
+            const res = await fetch(`/blog-app/backend/api/posts/get.php?id=${id}`);
+            const post = await res.json();
+
+            if (post.error) {
+                document.getElementById('post-content').innerHTML = `<p>${post.error}</p>`;
+                return;
+            }
+
+            // ✅ Convert Markdown to HTML
+            let htmlContent = marked.parse(post.content || '');
+
+            // Sanitize HTML (allow only safe tags)
+            const temp = document.createElement('div');
+            temp.innerHTML = htmlContent;
+            const allowedTags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'blockquote', 'ul', 'ol', 'li', 'br', 'code', 'pre', 'a', 'img'];
+            const walker = document.createTreeWalker(temp, NodeFilter.SHOW_ELEMENT);
+            let node;
+            while (node = walker.nextNode()) {
+                if (!allowedTags.includes(node.tagName.toLowerCase())) {
+                    node.remove();
+                }
+            }
+            htmlContent = temp.innerHTML;
+
+            // ✅ Add image if exists
+            let imageHtml = '';
+            if (post.image) {
+                imageHtml = `<img src="/blog-app/uploads/${post.image}" alt="Featured image" class="post-image">`;
+            }
+
+            let actions = '';
+            if (user && user.id == post.user_id) {
+                actions = `
+                    <a href="edit.html?id=${post.id}">Edit</a>
+                    <a href="#" id="deleteBtn">Delete</a>
+                `;
+            }
+
+            // ✅ Render full post with image
+            document.getElementById('post-content').innerHTML = `
+                <h1>${escapeHtml(post.title)}</h1>
+                ${imageHtml}
+                <p class="meta">By ${escapeHtml(post.username)} | 
+                   Created: ${post.created_at} | Updated: ${post.updated_at}
+                </p>
+                <div class="content">${htmlContent}</div>
+                <div class="actions">${actions}</div>
+            `;
+
+            // Set up delete button
+            if (user && user.id == post.user_id) {
+                document.getElementById('deleteBtn').onclick = () => {
+                    if (confirm('Delete this post?')) {
+                        deletePost(id);
+                    }
+                };
+            }
+        }
+
+        async function deletePost(id) {
+            const res = await fetch('/blog-app/backend/api/posts/delete.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = 'index.html';
+            } else {
+                alert(data.error || 'Delete failed');
+            }
+        }
+    </script>
+</body>
+</html>

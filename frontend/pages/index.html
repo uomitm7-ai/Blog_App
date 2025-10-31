@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyBlog</title>
+    <script src="../lib/marked.min.js"></script>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<script>
+// Dark mode toggle
+function initThemeToggle() {
+    const toggle = document.getElementById('themeToggle');
+    if (!toggle) return;
+    
+    // Check system preference
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('theme');
+    
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        toggle.innerHTML = '<i class="fas fa-sun"></i>';
+    }
+    
+    toggle.addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+            toggle.innerHTML = '<i class="fas fa-moon"></i>';
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            toggle.innerHTML = '<i class="fas fa-sun"></i>';
+        }
+    });
+}
+
+// Initialize on load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initThemeToggle);
+} else {
+    initThemeToggle();
+}
+</script>
+
+
+<body>
+   
+    <nav class="navbar">
+    <div class="container">
+        <h1><a href="index.html">MyBlog</a></h1>
+        <div class="navbar-actions">
+            <div id="authNav"></div>
+            <!-- <button class="theme-toggle" id="themeToggle">
+                <i class="fas fa-moon"></i>
+            </button> -->
+        </div>
+    </div>
+</nav>
+
+    <div class="container">
+        <h2>All Blog Posts</h2>
+        <div id="posts"></div>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <script>
+        // Check auth and load UI
+        checkAuth().then(user => {
+            if (user) {
+                document.getElementById('authNav').innerHTML = `
+                    <span>Welcome, ${user.username}!</span>
+                    <a href="create.html">New Post</a>
+                    <a href="#" id="logoutLink">Logout</a>
+                `;
+                document.getElementById('logoutLink').onclick = logout;
+                loadPosts();
+            } else {
+                window.location.href = 'login.html';
+            }
+        });
+
+
+        async function loadPosts() {
+    const res = await fetch('/blog-app/backend/api/posts/list.php');
+    const posts = await res.json();
+    const container = document.getElementById('posts');
+    
+    if (posts.length === 0) {
+        container.innerHTML = '<p>No posts yet.</p>';
+        return;
+    }
+
+    // Helper: Convert Markdown to plain text excerpt
+    function markdownToPlainText(markdown, maxLength = 200) {
+        if (!markdown) return '';
+        let html = marked.parse(markdown);
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        let text = temp.textContent || temp.innerText || '';
+        text = text.replace(/\s+/g, ' ').trim();
+        if (text.length > maxLength) {
+            return text.substring(0, maxLength) + '...';
+        }
+        return text;
+    }
+
+    container.innerHTML = posts.map(post => {
+        const preview = markdownToPlainText(post.content, 200); // ✅ Correct function
+        let imageHtml = '';
+        if (post.image) {
+            imageHtml = `<img src="/blog-app/uploads/${post.image}" alt="Featured" style="width:100%; max-height:200px; object-fit:cover; border-radius:4px; margin-bottom:10px;">`;
+        }
+        return `
+            <div class="post-preview">
+                ${imageHtml}
+                <div class="post-content-wrapper">
+                <h3><a href="view.html?id=${post.id}">${escapeHtml(post.title)}</a></h3>
+                <p class="meta">By ${escapeHtml(post.username)} on ${post.created_at}</p>
+                <p class="post-preview-text">${escapeHtml(preview)}</p>
+            </div>
+            </div>
+        `;
+    }).join('');
+}
+        
+    </script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Post</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../lib/simplemde.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../js/theme.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <h1><a href="index.html">MyBlog</a></h1>
+        <div class="navbar-actions">
+            <div id="authNav"></div>
+            <!-- <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+                <i class="fas fa-moon"></i>
+            </button> -->
+        </div>
+    </div>
+</nav>
+    <div class="container">
+        <h2>Create New Blog Post</h2>
+        <p id="message" class="error"></p>
+        <form id="postForm">
+            <input type="text" id="title" placeholder="Post Title" required>
+            <!-- Add inside the form, below title input -->
+            <div style="margin-bottom: 20px;">
+                <label for="postImage">Featured Image (optional)</label><br>
+                <input type="file" id="postImage" accept="image/jpeg,image/png,image/webp">
+                <p style="font-size: 0.85rem; color: #7f8c8d; margin-top: 5px;">
+                    JPG, PNG, or WebP (Max 2MB)
+                </p>
+                <div id="imagePreview" style="margin-top: 10px; display: none;">
+                    <img id="previewImg" src="" alt="Preview" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+            </div>
+            <textarea id="content-editor"></textarea>
+            <button type="submit">Publish</button>
+            <a href="index.html">Cancel</a>
+        </form>
+    </div>
+
+    <script src="../lib/simplemde.min.js"></script>
+    <script src="../js/main.js"></script>
+    <script>
+        const simplemde = new SimpleMDE({ element: document.getElementById("content-editor") });
+
+        // document.getElementById('postForm').addEventListener('submit', async (e) => {
+        //     e.preventDefault();
+        //     const title = document.getElementById('title').value;
+        //     const content = simplemde.value();
+
+        //     const res = await fetch('/blog-app/backend/api/posts/create.php', {
+        //         method: 'POST',
+        //         credentials: 'same-origin',
+        //         headers: { 'Content-Type': 'application/json' },
+        //         body: JSON.stringify({ title, content })
+        //     });
+        //     const data = await res.json();
+
+        //     if (data.error) {
+        //         document.getElementById('message').textContent = data.error;
+        //     } else {
+        //         window.location.href = `view.html?id=${data.id}`;
+        //     }
+        // });
+        // Image preview
+            document.getElementById('postImage').addEventListener('change', function(e) {
+                const preview = document.getElementById('imagePreview');
+                const img = document.getElementById('previewImg');
+                if (e.target.files && e.target.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        img.src = ev.target.result;
+                        preview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(e.target.files[0]);
+                } else {
+                    preview.style.display = 'none';
+                }
+            });
+
+            // Form submit
+            document.getElementById('postForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = document.getElementById('title').value.trim();
+                const content = simplemde.value().trim();
+                const imageFile = document.getElementById('postImage').files[0];
+
+                if (!title || !content) {
+                    alert("Title and content are required!");
+                    return;
+                }
+
+                // Create FormData (for file upload)
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('content', content);
+                if (imageFile) {
+                    formData.append('image', imageFile);
+                }
+
+                const res = await fetch('/blog-app/backend/api/posts/create.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    // ❌ Remove Content-Type header — browser sets it with boundary
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    window.location.href = `view.html?id=${data.id}`;
+                }
+            });
+    </script>
+</body>
+</html> 
+
+
